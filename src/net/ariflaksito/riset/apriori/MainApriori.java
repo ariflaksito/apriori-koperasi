@@ -15,10 +15,11 @@ public class MainApriori {
 		boolean exit = false;
 		final long startTime = System.nanoTime();
 
-		ConnectFireBird fb = new ConnectFireBird();
-		//ConnectMysql fb = new ConnectMysql();
+//		ConnectFireBird fb = new ConnectFireBird();
+		ConnectMysql fb = new ConnectMysql();
 		ResultSet rs = fb.statement
-				.executeQuery("select count(kdnota) as jml from jual");
+				.executeQuery("select count(kdnota) as jml from jual "
+						+ "where tgljual between '2016-01-01' and '2016-01-04'");
 
 		while (rs.next()) {
 			totalTransaksi = rs.getInt("jml");
@@ -37,9 +38,9 @@ public class MainApriori {
 		fb.statement.executeUpdate("create table c1(item1 varchar(20), jml integer)");
 		System.out.println("create table c1...[ok]");
 
-		fb.statement.executeUpdate("insert into c1 (item1, jml) select i.kdbarang, count(kdnota) "
-				+ "from itemjual i, jual j where i.kdnota = j.kdnota and j.tgljual between '2016-01-01 and '2016-01-31' "
-				+ "group by i.kdbarang having count(kdnota) > "
+		fb.statement.executeUpdate("insert into c1 (item1, jml) select i.kdbarang, count(*) as jml "
+				+ "from itemjual i, jual j where i.kdnota = j.kdnota and j.tgljual between '2016-01-01' and '2016-01-04' "
+				+ "group by i.kdbarang having jml > "
 				+ minTransaksi);
 		System.out.println("insert data to table c1...[ok]");
 		System.out.println("------------------------------");
@@ -70,7 +71,16 @@ public class MainApriori {
 			for (int i = 1; i <= (c - 1); i++)
 				q1 += "p.item" + i + ",";
 
-			q1 += " q.item" + (c - 1) + ",0";
+			q1 += " q.item" + (c - 1) + ", (select count(*) from jual j "
+					+ "where(select count(*) from itemjual i where i.kdbarang in(";
+					
+			for (int i = 1; i <= c-1; i++) {
+				q1 += (i > 1) ? "," : "";
+				q1 += "p.item"+i+",";
+			}		
+					
+			q1 += "q.item"+(c-1)+") and i.kdnota = j.kdnota)>="+minTransaksi
+					+" and j.tgljual between '2016-01-01' and '2016-01-04')";
 			q1 += " from c" + (c - 1) + " p, c" + (c - 1) + " q";
 			q1 += " where q.item" + (c - 1) + " > p.item" + (c - 1);
 
@@ -82,48 +92,48 @@ public class MainApriori {
 				q1 += "p.item" + i + ",";
 
 			q1 += "q.item" + (c - 1);
-
+	
 			fb.statement.executeUpdate(q1);
 			System.out.println("insert data to table c" + c + "...[ok]");
 
-			String qz = "select * from c" + c;
-			ResultSet rsc = fb.statement.executeQuery(qz);
-
-			List<String> queryList = new ArrayList<String>();
-			while (rsc.next()) {
-				String in = "";
-				for (int i = 1; i <= c; i++) {
-					in += (i > 1) ? "," : "";
-					in += "'" + rsc.getString("item" + i) + "'";
-				}
-
-				String q2 = "update c" + c + " set jml = (select count(*) from jual j, itemjual i "
-						+ "where j.kdnota = i.kdnota and i.kdbarang in (" + in + ")) "
-						+ " where ";
-
-				for (int i = 1; i <= c; i++) {
-					q2 += (i > 1) ? "and " : "";
-					q2 += "item" + i + " ='" + rsc.getString("item" + i) + "'";
-				}
-
-				queryList.add(q2);
-			}
-
-			rsc.close();
-
-			int x = 1;
-			int total = queryList.size();
-			long start = System.currentTimeMillis();
-			System.out.println("Update table c "+c+"...");
-			
-			for (String query : queryList) {
-				
-				//System.out.println(query);
-				
-				fb.statement.executeUpdate(query);
-				ProgressBar.printProgress(start, total, x);
-				x++;
-			}
+//			String qz = "select * from c" + c;
+//			ResultSet rsc = fb.statement.executeQuery(qz);
+//
+//			List<String> queryList = new ArrayList<String>();
+//			while (rsc.next()) {
+//				String in = "";
+//				for (int i = 1; i <= c; i++) {
+//					in += (i > 1) ? "," : "";
+//					in += "'" + rsc.getString("item" + i) + "'";
+//				}
+//
+//				String q2 = "update c" + c + " set jml = (select count(*) from jual j, itemjual i "
+//						+ "where j.kdnota = i.kdnota and i.kdbarang in (" + in + ")) "
+//						+ " where ";
+//
+//				for (int i = 1; i <= c; i++) {
+//					q2 += (i > 1) ? "and " : "";
+//					q2 += "item" + i + " ='" + rsc.getString("item" + i) + "'";
+//				}
+//
+//				queryList.add(q2);
+//			}
+//
+//			rsc.close();
+//
+//			int x = 1;
+//			int total = queryList.size();
+//			long start = System.currentTimeMillis();
+//			System.out.println("Update table c "+c+"...");
+//			
+//			for (String query : queryList) {
+//				
+//				//System.out.println(query);
+//				
+//				fb.statement.executeUpdate(query);
+//				ProgressBar.printProgress(start, total, x);
+//				x++;
+//			}
 			
 			System.out.println("");
 			System.out.println("");
