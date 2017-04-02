@@ -16,8 +16,9 @@ public class MainApriori {
 		final long startTime = System.nanoTime();
 
 		ConnectFireBird fb = new ConnectFireBird();
+		//ConnectMysql fb = new ConnectMysql();
 		ResultSet rs = fb.statement
-				.executeQuery("select count(kdnota) as jml from jual " + "where extract(year from tgljual) = 2015");
+				.executeQuery("select count(kdnota) as jml from jual");
 
 		while (rs.next()) {
 			totalTransaksi = rs.getInt("jml");
@@ -36,9 +37,10 @@ public class MainApriori {
 		fb.statement.executeUpdate("create table c1(item1 varchar(20), jml integer)");
 		System.out.println("create table c1...[ok]");
 
-		fb.statement.executeUpdate("insert into c1 (item1, jml) select first 4 kdbarang, count(kdnota) "
-				+ "from itemjual where extract(year from jam) = 2015 " + "group by kdbarang having count(kdnota) >= "
-				+ minTransaksi + " Order by kdbarang");
+		fb.statement.executeUpdate("insert into c1 (item1, jml) select i.kdbarang, count(kdnota) "
+				+ "from itemjual i, jual j where i.kdnota = j.kdnota and j.tgljual between '2016-01-01 and '2016-01-31' "
+				+ "group by i.kdbarang having count(kdnota) > "
+				+ minTransaksi);
 		System.out.println("insert data to table c1...[ok]");
 		System.out.println("------------------------------");
 
@@ -96,8 +98,8 @@ public class MainApriori {
 				}
 
 				String q2 = "update c" + c + " set jml = (select count(*) from jual j, itemjual i "
-						+ "where j.kdnota = i.kdnota and i.kdbarang in (" + in + ") "
-						+ "and  extract(year from j.tgljual) = 2015) where ";
+						+ "where j.kdnota = i.kdnota and i.kdbarang in (" + in + ")) "
+						+ " where ";
 
 				for (int i = 1; i <= c; i++) {
 					q2 += (i > 1) ? "and " : "";
@@ -115,6 +117,9 @@ public class MainApriori {
 			System.out.println("Update table c "+c+"...");
 			
 			for (String query : queryList) {
+				
+				//System.out.println(query);
+				
 				fb.statement.executeUpdate(query);
 				ProgressBar.printProgress(start, total, x);
 				x++;
